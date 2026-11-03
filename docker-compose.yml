@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chimera
+      POSTGRES_PASSWORD: chimera
+      POSTGRES_DB: chimera
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chimera"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      CHIMERA_DATABASE_URL: postgresql+psycopg2://chimera:chimera@db:5432/chimera
+      CHIMERA_DATA_DIR: /data
+    volumes:
+      - chimera-data:/data
+      # mount datasets read-only for the Research tab / benchmark CLI
+      - ${DATASETS_DIR:-./datasets}:/datasets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  web:
+    build: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
+  chimera-data:
